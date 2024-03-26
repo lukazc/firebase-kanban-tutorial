@@ -9,6 +9,7 @@ import { Task } from './task/task.model';
 import { TaskComponent } from './task/task.component';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { TaskDialogComponent, TaskDialogResult } from './task-dialog/task-dialog.component';
 
 const MATERIAL = [
     MatIconModule,
