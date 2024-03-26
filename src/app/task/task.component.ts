@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 
 const MATERIAL = [
-    MatCardModule
+    MatCardModule,
 ]
 
 @Component({
