@@ -7,12 +7,14 @@ import { MatButtonModule } from '@angular/material/button';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 
 const MATERIAL = [
   MatFormFieldModule,
   MatDialogModule,
   MatInputModule,
   MatButtonModule,
+  MatIconModule
 ]
 
 @Component({
