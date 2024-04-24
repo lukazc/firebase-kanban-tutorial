@@ -10,6 +10,8 @@ import { TaskComponent } from './task/task.component';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { TaskDialogComponent, TaskDialogResult } from './task-dialog/task-dialog.component';
+import { Firestore, addDoc, collection, collectionData, deleteDoc, doc, query, runTransaction, updateDoc } from '@angular/fire/firestore';
+import { Observable } from 'rxjs';
 
 const MATERIAL = [
     MatIconModule,
@@ -36,52 +38,58 @@ const COMPONENTS = [TaskComponent];
 })
 export class AppComponent {
     title = 'firebase-kanban';
-    todo: Task[] = [
-        {
-            title: 'Buy milk',
-            description: 'Go to the store and buy milk'
-        },
-        {
-            title: 'Create a Kanban app',
-            description: 'Using Firebase and Angular create a Kanban app!'
-        }
-    ];
-    inProgress: Task[] = [];
-    done: Task[] = [];
+
+    todo: Observable<Task[]>;
+    inProgress: Observable<Task[]>;
+    done: Observable<Task[]>;
 
     constructor(
-        private dialog: MatDialog
-    ) { }
+        private dialog: MatDialog,
+        private firestore: Firestore
+    ) {
+        this.todo = collectionData(query(collection(this.firestore, 'todo')), { idField: 'id' }) as Observable<Task[]>;
+        this.inProgress = collectionData(query(collection(this.firestore, 'inProgress')), { idField: 'id' }) as Observable<Task[]>;
+        this.done = collectionData(query(collection(this.firestore, 'done')), { idField: 'id' }) as Observable<Task[]>;
+    }
 
     editTask(list: 'done' | 'todo' | 'inProgress', task: Task): void {
         const dialogRef = this.dialog.open(TaskDialogComponent, {
-          width: '270px',
-          data: {
-            task,
-            enableDelete: true,
-          },
+            width: '270px',
+            data: {
+                task,
+                enableDelete: true,
+            },
         });
-        dialogRef.afterClosed().subscribe((result: TaskDialogResult|undefined) => {
-          if (!result) {
-            return;
-          }
-          const dataList = this[list];
-          const taskIndex = dataList.indexOf(task);
-          if (result.delete) {
-            dataList.splice(taskIndex, 1);
-          } else {
-            dataList[taskIndex] = task;
-          }
+        dialogRef.afterClosed().subscribe((result: TaskDialogResult | undefined) => {
+            if (!result) {
+                return;
+            }
+            if (result.delete) {
+                deleteDoc(doc(this.firestore, list, task.id as string));
+            } else {
+                updateDoc(doc(this.firestore, list, task.id as string), {...result.task});
+            }
         });
-      }
+    }
 
-    drop(event: CdkDragDrop<Task[]>): void {
+    drop(event: CdkDragDrop<Task[] | null>): void {
         if (event.previousContainer === event.container) {
-            moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+            // TODO: update the order of the tasks
+            // moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
             return;
         }
         if (!event.container.data || !event.previousContainer.data) {
             return;
+        }
+        const item = event.previousContainer.data[event.previousIndex];
+        if (event.previousContainer.id) {
+            runTransaction(this.firestore, () => {
+                const promise = Promise.all([
+                    deleteDoc(doc(this.firestore, event.previousContainer.id, item.id as string)),
+                    addDoc(collection(this.firestore, event.container.id), item)
+                ]);
+                return promise;
+            });
         }
         transferArrayItem(
             event.previousContainer.data,
@@ -104,7 +112,7 @@ export class AppComponent {
                 if (!result) {
                     return;
                 }
-                this.todo.push(result.task);
+                addDoc(collection(this.firestore, 'todo'), result.task);
             });
     }
 }
