@@ -1,17 +1,17 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { Task } from './task/task.model';
-import { TaskComponent } from './task/task.component';
+import { CdkDragDrop, DragDropModule, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
-import { TaskDialogComponent, TaskDialogResult } from './task-dialog/task-dialog.component';
+import { Component } from '@angular/core';
 import { Firestore, addDoc, collection, collectionData, deleteDoc, doc, query, runTransaction, updateDoc } from '@angular/fire/firestore';
-import { Observable } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { RouterOutlet } from '@angular/router';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { TaskDialogComponent, TaskDialogResult } from './task-dialog/task-dialog.component';
+import { TaskComponent } from './task/task.component';
+import { Task } from './task/task.model';
 
 const MATERIAL = [
     MatIconModule,
@@ -47,10 +47,16 @@ export class AppComponent {
         private dialog: MatDialog,
         private firestore: Firestore
     ) {
-        this.todo = collectionData(query(collection(this.firestore, 'todo')), { idField: 'id' }) as Observable<Task[]>;
-        this.inProgress = collectionData(query(collection(this.firestore, 'inProgress')), { idField: 'id' }) as Observable<Task[]>;
-        this.done = collectionData(query(collection(this.firestore, 'done')), { idField: 'id' }) as Observable<Task[]>;
+        this.todo = this.getObservable('todo');
+        this.inProgress = this.getObservable('inProgress');
+        this.done = this.getObservable('done');
     }
+
+    private getObservable = (collectionPath: string) => {
+        const subject = new BehaviorSubject<Task[]>([]);
+        (collectionData(query(collection(this.firestore, collectionPath)), { idField: 'id' }) as Observable<Task[]>).subscribe((tasks) => subject.next(tasks));
+        return subject;
+    };
 
     editTask(list: 'done' | 'todo' | 'inProgress', task: Task): void {
         const dialogRef = this.dialog.open(TaskDialogComponent, {
@@ -67,7 +73,7 @@ export class AppComponent {
             if (result.delete) {
                 deleteDoc(doc(this.firestore, list, task.id as string));
             } else {
-                updateDoc(doc(this.firestore, list, task.id as string), {...result.task});
+                updateDoc(doc(this.firestore, list, task.id as string), { ...result.task });
             }
         });
     }
